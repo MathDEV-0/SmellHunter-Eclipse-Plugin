@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension
+         point="org.eclipse.ui.views">
+      <view
+            category="com.exemplo.minhaview.category"
+            class="com.plugin.view.MyView"
+            icon="icons/sample.png"
+            id="com.plugin.view.view"
+            name="MyView"
+            restorable="true">
+      </view>
+   </extension>
+   <extension
+         point="org.eclipse.ui.perspectiveExtensions">
+      <perspectiveExtension
+            targetID="org.eclipse.jdt.ui.JavaPerspective">
+      </perspectiveExtension>
+   </extension>
+
+</plugin>
