@@ -5,22 +5,31 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+<<<<<<< HEAD
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.lang.reflect.Type;
 import java.net.HttpURLConnection;
 import java.net.URL;
+=======
+import java.lang.reflect.Type;
+>>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+<<<<<<< HEAD
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+=======
+import java.util.List;
+import java.util.stream.IntStream;
+>>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
 
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.jface.dialogs.MessageDialog;
@@ -73,6 +82,7 @@ public class MyView extends ViewPart {
     private Text[] fileNameTexts = new Text[3];
     private Canvas[] statusIndicators = new Canvas[3];
 
+<<<<<<< HEAD
     // Armazena os dados das métricas e seus limites carregados dos arquivos
     private Map<String, Double> metricValues;
     private Map<String, double[]> metricThresholds;
@@ -81,6 +91,13 @@ public class MyView extends ViewPart {
 
     // Cores personalizadas para a UI
     private Color greenColor, redColor, yellowColor, primaryBlue, lightGrayBackground, fontColor;
+=======
+    private final String[] metricas = {"LOC", "NOA", "NOM", "WMC", "LCOM", "CBO", "DIT", "NOC"};
+    private static final String HISTORY_FILE_NAME = "execution_history.json";
+
+    // Cores personalizadas para a UI
+    private Color greenColor, redColor, primaryBlue, lightGrayBackground, fontColor;
+>>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
     
     /**
      * Classe interna para representar uma entrada no log de histórico.
@@ -130,9 +147,14 @@ public class MyView extends ViewPart {
      * @param display O display atual.
      */
     private void initializeColors(Display display) {
+<<<<<<< HEAD
         greenColor = new Color(display, 76, 175, 80);   // Verde para LOW
         yellowColor = new Color(display, 255, 193, 7); // Amarelo para MEDIUM
         redColor = new Color(display, 244, 67, 54);     // Vermelho para HIGH
+=======
+        greenColor = new Color(display, 76, 175, 80);
+        redColor = new Color(display, 244, 67, 54);
+>>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
         primaryBlue = new Color(display, 33, 150, 243);
         lightGrayBackground = new Color(display, 245, 245, 245);
         fontColor = display.getSystemColor(SWT.COLOR_DARK_GRAY);
@@ -230,6 +252,7 @@ public class MyView extends ViewPart {
     private void checkExecuteButtonState() {
         boolean allFilesLoaded = Arrays.stream(filePaths).allMatch(p -> p != null);
         executeButton.setEnabled(allFilesLoaded);
+<<<<<<< HEAD
     }
     
     /**
@@ -469,6 +492,47 @@ public class MyView extends ViewPart {
 
     
     /**
+=======
+    }
+    
+    /**
+     * Ponto de entrada para o processo de detecção. É chamado quando o botão "Detectar" é clicado.
+     */
+    private void executeDetectionProcess() {
+        if (!executeButton.isEnabled()) {
+            MessageDialog.openError(getSite().getShell(), "Erro", "Todos os arquivos devem ser carregados.");
+            return;
+        }
+        
+        try {
+            String metricValuesFile = filePaths[1];
+            loadDataFromCSV(metricValuesFile);
+
+            String badSmellResult = "3 badsmells detectados";
+            String status = "Sucesso";
+            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+            String scriptName = new File(filePaths[0]).getName();
+            
+            ExecutionLogEntry logEntry = new ExecutionLogEntry(timestamp, scriptName, badSmellResult, status);
+            addLogToHistory(logEntry);
+
+            MessageDialog.openInformation(
+                getSite().getShell(),
+                "Processo Concluído",
+                "Detecção de badsmells finalizada com sucesso!"
+            );
+
+        } catch (Exception e) {
+            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+            String scriptName = new File(filePaths[0]).getName();
+            ExecutionLogEntry logEntry = new ExecutionLogEntry(timestamp, scriptName, "N/A", "Falha");
+            addLogToHistory(logEntry);
+            MessageDialog.openError(getSite().getShell(), "Erro", "Falha ao processar arquivos: " + e.getMessage());
+        }
+    }
+    
+    /**
+>>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
      * Cria a tabela para exibir as métricas e suas classificações.
      * @param parent O composite pai.
      */
@@ -512,6 +576,7 @@ public class MyView extends ViewPart {
         historyTable.setHeaderVisible(true);
         historyTable.setLinesVisible(true);
         historyTable.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+<<<<<<< HEAD
 
         String[] headers = {"Data - Hora", "Script", "Badsmells", "Status"};
         for (String header : headers) {
@@ -548,10 +613,49 @@ public class MyView extends ViewPart {
                     metricThresholds.put(metricName, new double[]{lowThreshold, mediumThreshold});
                 }
             }
+=======
+
+        String[] headers = {"Data - Hora", "Script", "Badsmells", "Status"};
+        for (String header : headers) {
+            TableColumn column = new TableColumn(historyTable, SWT.NONE);
+            column.setText(header);
+        }
+
+        Button clearButton = new Button(historyGroup, SWT.PUSH);
+        clearButton.setText("Limpar Histórico");
+        clearButton.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false));
+        clearButton.addListener(SWT.Selection, e -> clearHistory());
+        
+        for (TableColumn col : historyTable.getColumns()) {
+            col.pack();
+        }
+    }
+    
+    /**
+     * Lê os dados de métricas de um arquivo CSV, processa e gera a tabela e o gráfico.
+     * @param filePath O caminho para o arquivo CSV.
+     */
+    private void loadDataFromCSV(String filePath) {
+        clearMetricsAndChart();
+        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+            String line = br.readLine();
+            if (line == null) throw new IOException("Arquivo vazio");
+
+            String[] values = line.split(",");
+            if (values.length != metricas.length)
+                throw new IOException("Esperado " + metricas.length + " valores de métricas");
+
+            double[] yValues = processMetrics(values);
+            generateChart(yValues);
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+>>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
         }
     }
 
     /**
+<<<<<<< HEAD
      * Lê os dados de métricas de um arquivo CSV, processa e então gera a tabela e o gráfico.
      * O formato esperado é: Metrica,Valor
      * @param filePath O caminho para o arquivo CSV de valores.
@@ -577,6 +681,8 @@ public class MyView extends ViewPart {
     }
 
     /**
+=======
+>>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
      * Limpa o conteúdo da tabela de métricas e remove o gráfico anterior.
      */
     private void clearMetricsAndChart() {
@@ -589,6 +695,7 @@ public class MyView extends ViewPart {
 
     /**
      * Processa os valores das métricas, preenche a tabela e prepara os dados para o gráfico.
+<<<<<<< HEAD
      */
     private void processMetrics() {
         List<String> sortedMetrics = metricValues.keySet().stream().sorted().collect(Collectors.toList());
@@ -619,6 +726,27 @@ public class MyView extends ViewPart {
         for (TableColumn col : metricsTable.getColumns()) col.pack();
         
         generateChart(sortedMetrics.toArray(new String[0]), numericClassifications);
+=======
+     * @param valores Array de strings com os valores das métricas.
+     * @return Array de doubles com os valores numéricos para o eixo Y do gráfico.
+     */
+    private double[] processMetrics(String[] valores) {
+        double[] numericValues = new double[metricas.length];
+        for (int i = 0; i < valores.length; i++) {
+            String valueStr = valores[i].trim();
+            double value = Double.parseDouble(valueStr);
+            String classification = classify(metricas[i], value);
+            addMetricTableRow(metricas[i], valueStr, classification);
+            numericValues[i] = switch (classification) {
+                case "LOW" -> 1.0;
+                case "MEDIUM" -> 2.0;
+                case "HIGH" -> 3.0;
+                default -> 0.0;
+            };
+        }
+        for (TableColumn col : metricsTable.getColumns()) col.pack();
+        return numericValues;
+>>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
     }
 
     /**
@@ -635,10 +763,17 @@ public class MyView extends ViewPart {
 
     /**
      * Gera e estiliza o gráfico de barras com base nos valores das métricas.
+<<<<<<< HEAD
      * @param metricNames Os nomes das métricas para o eixo X.
      * @param valoresNumericos Array de dados para a série.
      */
     private void generateChart(String[] metricNames, double[] valoresNumericos) {
+=======
+     * @param valoresNumericos Os valores para o eixo Y do gráfico.
+     */
+    @SuppressWarnings("deprecation")
+	private void generateChart(double[] valoresNumericos) {
+>>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
         Display display = chartComposite.getDisplay();
         Chart chart = new Chart(chartComposite, SWT.NONE);
         
@@ -652,14 +787,22 @@ public class MyView extends ViewPart {
         
         // --- Eixo Y (Valores) ---
         IAxis yAxis = axisSet.getYAxis(0);
+<<<<<<< HEAD
         yAxis.getTitle().setText("Classificação de Risco (1=Baixo, 2=Médio, 3=Alto)"); 
+=======
+        yAxis.getTitle().setText("Classificação (1=Low, 2=Medium, 3=High)"); 
+>>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
         yAxis.getTitle().setFont(new Font(display, "Segoe UI", 9, SWT.NORMAL));
         yAxis.getTitle().setForeground(fontColor);
         yAxis.getTick().setFont(new Font(display, "Segoe UI", 8, SWT.NORMAL));
         yAxis.getTick().setForeground(fontColor);
         yAxis.getGrid().setForeground(new Color(display, 224, 224, 224));
+<<<<<<< HEAD
         yAxis.setRange(new Range(0, 4));
 
+=======
+        
+>>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
         // --- Eixo X (Categorias) ---
         IAxis xAxis = axisSet.getXAxis(0);
         xAxis.getTitle().setText("Métricas");
@@ -667,11 +810,19 @@ public class MyView extends ViewPart {
         xAxis.getTitle().setForeground(fontColor);
         xAxis.getTick().setFont(new Font(display, "Segoe UI", 8, SWT.NORMAL));
         xAxis.getTick().setForeground(fontColor);
+<<<<<<< HEAD
         xAxis.setCategorySeries(metricNames);
         xAxis.enableCategory(true);
         xAxis.getGrid().setVisible(false);
 
         // --- Séries de Dados ---
+=======
+        xAxis.setCategorySeries(metricas);
+        xAxis.getGrid().setVisible(false);
+
+        // --- Séries de Dados ---
+        double[] xSeries = IntStream.range(0, metricas.length).mapToDouble(i -> (double) i).toArray();
+>>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
         IBarSeries series = (IBarSeries) chart.getSeriesSet().createSeries(SeriesType.BAR, "Classificação");
         series.setYSeries(valoresNumericos);
         series.setBarColor(primaryBlue); // Todas as barras terão a mesma cor
@@ -683,12 +834,17 @@ public class MyView extends ViewPart {
     }
 
     /**
+<<<<<<< HEAD
      * Classifica um valor de métrica como LOW, MEDIUM ou HIGH com base nos limiares carregados.
+=======
+     * Classifica um valor de métrica como LOW, MEDIUM ou HIGH com base em limiares pré-definidos.
+>>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
      * @param metrica O nome da métrica.
      * @param valor O valor a ser classificado.
      * @return A string de classificação.
      */
     private String classify(String metrica, double valor) {
+<<<<<<< HEAD
         if (metricThresholds == null || !metricThresholds.containsKey(metrica)) {
             return "UNKNOWN";
         }
@@ -702,6 +858,19 @@ public class MyView extends ViewPart {
         } else {
             return "HIGH";
         }
+=======
+        return switch (metrica) {
+            case "LOC" -> valor < 100 ? "LOW" : valor < 300 ? "MEDIUM" : "HIGH";
+            case "NOA" -> valor < 5 ? "LOW" : valor < 10 ? "MEDIUM" : "HIGH";
+            case "NOM" -> valor < 5 ? "LOW" : valor < 15 ? "MEDIUM" : "HIGH";
+            case "WMC" -> valor < 10 ? "LOW" : valor < 30 ? "MEDIUM" : "HIGH";
+            case "LCOM" -> valor < 0.3 ? "LOW" : valor < 0.7 ? "MEDIUM" : "HIGH";
+            case "CBO" -> valor < 5 ? "LOW" : valor < 15 ? "MEDIUM" : "HIGH";
+            case "DIT" -> valor < 2 ? "LOW" : valor < 5 ? "MEDIUM" : "HIGH";
+            case "NOC" -> valor == 0 ? "LOW" : valor < 5 ? "MEDIUM" : "HIGH";
+            default -> "UNKNOWN";
+        };
+>>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
     }
 
     /**
