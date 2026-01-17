@@ -6,21 +6,28 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 51a1313 (inicial commit)
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.lang.reflect.Type;
 import java.net.HttpURLConnection;
 import java.net.URL;
+<<<<<<< HEAD
 =======
 import java.lang.reflect.Type;
 >>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
+=======
+>>>>>>> 51a1313 (inicial commit)
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+<<<<<<< HEAD
 <<<<<<< HEAD
 import java.util.HashMap;
 import java.util.List;
@@ -30,6 +37,12 @@ import java.util.stream.Collectors;
 import java.util.List;
 import java.util.stream.IntStream;
 >>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
+=======
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+>>>>>>> 51a1313 (inicial commit)
 
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.jface.dialogs.MessageDialog;
@@ -83,10 +96,14 @@ public class MyView extends ViewPart {
     private Canvas[] statusIndicators = new Canvas[3];
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 51a1313 (inicial commit)
     // Armazena os dados das métricas e seus limites carregados dos arquivos
     private Map<String, Double> metricValues;
     private Map<String, double[]> metricThresholds;
     
+<<<<<<< HEAD
     private static final String HISTORY_FILE_NAME = "execution_history.json";
 
     // Cores personalizadas para a UI
@@ -98,6 +115,12 @@ public class MyView extends ViewPart {
     // Cores personalizadas para a UI
     private Color greenColor, redColor, primaryBlue, lightGrayBackground, fontColor;
 >>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
+=======
+    private static final String HISTORY_FILE_NAME = "execution_history.json";
+
+    // Cores personalizadas para a UI
+    private Color greenColor, redColor, yellowColor, primaryBlue, lightGrayBackground, fontColor;
+>>>>>>> 51a1313 (inicial commit)
     
     /**
      * Classe interna para representar uma entrada no log de histórico.
@@ -148,6 +171,7 @@ public class MyView extends ViewPart {
      */
     private void initializeColors(Display display) {
 <<<<<<< HEAD
+<<<<<<< HEAD
         greenColor = new Color(display, 76, 175, 80);   // Verde para LOW
         yellowColor = new Color(display, 255, 193, 7); // Amarelo para MEDIUM
         redColor = new Color(display, 244, 67, 54);     // Vermelho para HIGH
@@ -155,6 +179,11 @@ public class MyView extends ViewPart {
         greenColor = new Color(display, 76, 175, 80);
         redColor = new Color(display, 244, 67, 54);
 >>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
+=======
+        greenColor = new Color(display, 76, 175, 80);   // Verde para LOW
+        yellowColor = new Color(display, 255, 193, 7); // Amarelo para MEDIUM
+        redColor = new Color(display, 244, 67, 54);     // Vermelho para HIGH
+>>>>>>> 51a1313 (inicial commit)
         primaryBlue = new Color(display, 33, 150, 243);
         lightGrayBackground = new Color(display, 245, 245, 245);
         fontColor = display.getSystemColor(SWT.COLOR_DARK_GRAY);
@@ -503,33 +532,233 @@ public class MyView extends ViewPart {
             MessageDialog.openError(getSite().getShell(), "Erro", "Todos os arquivos devem ser carregados.");
             return;
         }
-        
-        try {
-            String metricValuesFile = filePaths[1];
-            loadDataFromCSV(metricValuesFile);
+        executeButton.setText("Processando...");
+        executeButton.setEnabled(false);
 
-            String badSmellResult = "3 badsmells detectados";
-            String status = "Sucesso";
+        new Thread(() -> {
             String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
             String scriptName = new File(filePaths[0]).getName();
-            
-            ExecutionLogEntry logEntry = new ExecutionLogEntry(timestamp, scriptName, badSmellResult, status);
-            addLogToHistory(logEntry);
 
-            MessageDialog.openInformation(
-                getSite().getShell(),
-                "Processo Concluído",
-                "Detecção de badsmells finalizada com sucesso!"
-            );
+            try {
+                // 1) I/O e processamento OFF-UI THREAD (seguro)
+                Map<String, double[]> thresholdsLoaded = readMetricThresholds(filePaths[2]);
+                Map<String, Double> metricsLoaded = readMetricValues(filePaths[1]);
 
-        } catch (Exception e) {
-            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
-            String scriptName = new File(filePaths[0]).getName();
-            ExecutionLogEntry logEntry = new ExecutionLogEntry(timestamp, scriptName, "N/A", "Falha");
-            addLogToHistory(logEntry);
-            MessageDialog.openError(getSite().getShell(), "Erro", "Falha ao processar arquivos: " + e.getMessage());
-        }
+                String dslCode = new String(
+                    Files.readAllBytes(Paths.get(filePaths[0])),
+                    java.nio.charset.StandardCharsets.UTF_8
+                );
+
+                // 2) Chama API (contrato real): /analyze -> execution_id
+                String analyzeUrl = "http://localhost:5000/analyze";
+                AnalyzeResponse analyzeResp = callAnalyzeApi(analyzeUrl, dslCode, metricsLoaded, thresholdsLoaded);
+
+                if (analyzeResp == null || analyzeResp.execution_id == null || analyzeResp.execution_id.isBlank()) {
+                    throw new IOException("Resposta inválida do /analyze: execution_id ausente.");
+                }
+
+                // 3) Consulta /status/<cod_ctx> (pode ser assíncrono: faz polling curto)
+                String statusJson = pollStatusJson("http://localhost:5000/status/", analyzeResp.execution_id);
+                
+                // 4) Extrai resultado do JSON de status (robusto: tenta smells_detected e is_smell)
+                DetectionResult det = parseDetectionResultFromStatus(statusJson);
+
+                String badSmellResult;
+                if (det.smells != null && !det.smells.isEmpty()) {
+                    badSmellResult = "Detectados: " + String.join(", ", det.smells);
+                } else if (Boolean.TRUE.equals(det.isSmell)) {
+                    badSmellResult = "Bad smell detectado";
+                } else {
+                    badSmellResult = "Nenhum bad smell detectado";
+                }
+
+                ExecutionLogEntry logEntry = new ExecutionLogEntry(timestamp, scriptName, badSmellResult, "Sucesso");
+
+                // 5) ATUALIZA UI no UI THREAD (SWT-safe)
+                Display.getDefault().asyncExec(() -> {
+                    try {
+                        // Atualiza estado do objeto (usado por processMetrics/classify)
+                        this.metricThresholds = thresholdsLoaded;
+                        this.metricValues = metricsLoaded;
+
+                        // Recalcula tabela e gráfico usando seus métodos (UI thread!)
+                        clearMetricsAndChart();
+                        processMetrics();
+
+                        addLogToHistory(logEntry);
+
+                        MessageDialog.openInformation(
+                            getSite().getShell(),
+                            "Processo Concluído",
+                            badSmellResult
+                        );
+                    } finally {
+                    	executeButton.setText("Detectar Badsmells");
+                    	executeButton.setEnabled(true);
+                    }
+                });
+
+            } catch (Exception e) {
+                ExecutionLogEntry logEntry = new ExecutionLogEntry(timestamp, scriptName, "N/A", "Falha");
+
+                Display.getDefault().asyncExec(() -> {
+                    addLogToHistory(logEntry);
+                    MessageDialog.openError(getSite().getShell(), "Erro", "Falha ao processar: " + e.getMessage());
+                    executeButton.setEnabled(true);
+                });
+            }
+        }, "SmellDSL-Detection-Thread").start();
     }
+
+    private Map<String, double[]> readMetricThresholds(String filePath) throws IOException {
+        Map<String, double[]> thresholds = new HashMap<>();
+        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            br.readLine(); // header
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length >= 3) {
+                    String metricName = parts[0].trim();
+                    double lowThreshold = Double.parseDouble(parts[1].trim());
+                    double mediumThreshold = Double.parseDouble(parts[2].trim());
+                    thresholds.put(metricName, new double[]{lowThreshold, mediumThreshold});
+                }
+            }
+        }
+        return thresholds;
+    }
+
+    private Map<String, Double> readMetricValues(String filePath) throws IOException {
+        Map<String, Double> values = new HashMap<>();
+        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            br.readLine(); // header
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length >= 2) {
+                    String metricName = parts[0].trim();
+                    double value = Double.parseDouble(parts[1].trim());
+                    values.put(metricName, value);
+                }
+            }
+        }
+        return values;
+    }
+
+    private String pollStatusJson(String statusBaseUrl, String codCtx) throws IOException, InterruptedException {
+        // Tenta por ~5s (10 tentativas * 500ms). Ajuste se quiser.
+        int attempts = 10;
+        long sleepMs = 500;
+
+        IOException lastEx = null;
+
+        for (int i = 0; i < attempts; i++) {
+            try {
+            	String json = getExecutionStatus(statusBaseUrl, codCtx);
+                if (json != null && !json.isBlank()) {
+                    // Se você tiver um campo "status" tipo DONE/PROCESSING, dá para checar aqui.
+                    return json;
+                }
+            } catch (IOException ex) {
+                lastEx = ex;
+            }
+            Thread.sleep(sleepMs);
+        }
+
+        if (lastEx != null) throw lastEx;
+        throw new IOException("Não foi possível obter status da execução: " + codCtx);
+    }
+
+    private static class DetectionResult {
+        Boolean isSmell;
+        List<String> smells;
+    }
+
+    private DetectionResult parseDetectionResultFromStatus(String statusJson) {
+        DetectionResult r = new DetectionResult();
+        r.isSmell = false;
+        r.smells = new ArrayList<>();
+
+        try {
+            com.google.gson.JsonObject root = com.google.gson.JsonParser.parseString(statusJson).getAsJsonObject();
+
+            // 1) Caso ideal: result direto
+            if (root.has("result") && root.get("result").isJsonObject()) {
+                extractFromResultObject(root.getAsJsonObject("result"), r);
+                return r;
+            }
+
+            // 2) Caso real do seu /status: history[].details contém uma string JSON com {"result": {...}}
+            if (root.has("history") && root.get("history").isJsonArray()) {
+                com.google.gson.JsonArray hist = root.getAsJsonArray("history");
+
+                // busca o último item INTERPRETED (melhor que pegar o primeiro)
+                for (int i = hist.size() - 1; i >= 0; i--) {
+                    if (!hist.get(i).isJsonObject()) continue;
+                    com.google.gson.JsonObject item = hist.get(i).getAsJsonObject();
+
+                    String st = item.has("status") && !item.get("status").isJsonNull()
+                            ? item.get("status").getAsString()
+                            : "";
+
+                    if (!"INTERPRETED".equalsIgnoreCase(st)) continue;
+
+                    if (item.has("details") && !item.get("details").isJsonNull()) {
+                        // details pode vir como string JSON
+                        String detailsRaw = item.get("details").getAsString();
+
+                        com.google.gson.JsonObject detailsObj =
+                                com.google.gson.JsonParser.parseString(detailsRaw).getAsJsonObject();
+
+                        if (detailsObj.has("result") && detailsObj.get("result").isJsonObject()) {
+                            extractFromResultObject(detailsObj.getAsJsonObject("result"), r);
+                            return r;
+                        }
+                    }
+                }
+            }
+
+            // 3) fallback: tenta smells_detected ou is_smell no topo (se existir)
+            if (root.has("is_smell") && !root.get("is_smell").isJsonNull()) {
+                r.isSmell = root.get("is_smell").getAsBoolean();
+            }
+            if (root.has("smells_detected") && root.get("smells_detected").isJsonArray()) {
+                for (var el : root.getAsJsonArray("smells_detected")) {
+                    if (!el.isJsonNull()) r.smells.add(el.getAsString());
+                }
+            }
+
+        } catch (Exception ignore) {
+            // mantém defaults
+        }
+
+        return r;
+    }
+
+    private void extractFromResultObject(com.google.gson.JsonObject resultObj, DetectionResult r) {
+        // smells
+        if (resultObj.has("smells") && resultObj.get("smells").isJsonArray()) {
+            for (var el : resultObj.getAsJsonArray("smells")) {
+                if (!el.isJsonNull()) r.smells.add(el.getAsString());
+            }
+        }
+
+        // opcional: se você quiser usar rules pra construir mensagem
+        // (não precisa para detectar, mas ajuda a explicar)
+        if (resultObj.has("rules") && resultObj.get("rules").isJsonObject()) {
+            // você pode ler depois se quiser
+        }
+
+        // opcional: treatments também
+        if (resultObj.has("treatments") && resultObj.get("treatments").isJsonObject()) {
+            // você pode ler depois se quiser
+        }
+
+        // isSmell não vem explícito, então inferimos:
+        r.isSmell = !r.smells.isEmpty();
+    }
+
+
     
     /**
 >>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
@@ -632,12 +861,14 @@ public class MyView extends ViewPart {
     }
     
     /**
-     * Lê os dados de métricas de um arquivo CSV, processa e gera a tabela e o gráfico.
-     * @param filePath O caminho para o arquivo CSV.
+     * Carrega os limites (thresholds) de cada métrica a partir de um arquivo CSV.
+     * O formato esperado é: Metrica,LimiteLow,LimiteMedium
+     * @param filePath O caminho para o arquivo CSV de limites.
      */
-    private void loadDataFromCSV(String filePath) {
-        clearMetricsAndChart();
+    private void loadMetricThresholds(String filePath) throws IOException, NumberFormatException {
+        metricThresholds = new HashMap<>();
         try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+<<<<<<< HEAD
             String line = br.readLine();
             if (line == null) throw new IOException("Arquivo vazio");
 
@@ -651,11 +882,27 @@ public class MyView extends ViewPart {
         } catch (Exception e) {
             throw new RuntimeException(e);
 >>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
+=======
+            String line;
+            br.readLine(); // Pula a linha do cabeçalho
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length >= 3) {
+                    String metricName = parts[0].trim();
+                    double lowThreshold = Double.parseDouble(parts[1].trim());
+                    double mediumThreshold = Double.parseDouble(parts[2].trim());
+                    metricThresholds.put(metricName, new double[]{lowThreshold, mediumThreshold});
+                }
+            }
+>>>>>>> 51a1313 (inicial commit)
         }
     }
 
     /**
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 51a1313 (inicial commit)
      * Lê os dados de métricas de um arquivo CSV, processa e então gera a tabela e o gráfico.
      * O formato esperado é: Metrica,Valor
      * @param filePath O caminho para o arquivo CSV de valores.
@@ -681,8 +928,11 @@ public class MyView extends ViewPart {
     }
 
     /**
+<<<<<<< HEAD
 =======
 >>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
+=======
+>>>>>>> 51a1313 (inicial commit)
      * Limpa o conteúdo da tabela de métricas e remove o gráfico anterior.
      */
     private void clearMetricsAndChart() {
@@ -695,6 +945,7 @@ public class MyView extends ViewPart {
 
     /**
      * Processa os valores das métricas, preenche a tabela e prepara os dados para o gráfico.
+<<<<<<< HEAD
 <<<<<<< HEAD
      */
     private void processMetrics() {
@@ -729,24 +980,43 @@ public class MyView extends ViewPart {
 =======
      * @param valores Array de strings com os valores das métricas.
      * @return Array de doubles com os valores numéricos para o eixo Y do gráfico.
+=======
+>>>>>>> 51a1313 (inicial commit)
      */
-    private double[] processMetrics(String[] valores) {
-        double[] numericValues = new double[metricas.length];
-        for (int i = 0; i < valores.length; i++) {
-            String valueStr = valores[i].trim();
-            double value = Double.parseDouble(valueStr);
-            String classification = classify(metricas[i], value);
-            addMetricTableRow(metricas[i], valueStr, classification);
-            numericValues[i] = switch (classification) {
-                case "LOW" -> 1.0;
-                case "MEDIUM" -> 2.0;
-                case "HIGH" -> 3.0;
-                default -> 0.0;
-            };
+    private void processMetrics() {
+        List<String> sortedMetrics = metricValues.keySet().stream().sorted().collect(Collectors.toList());
+        double[] numericClassifications = new double[sortedMetrics.size()];
+
+        int i = 0;
+        for (String metric : sortedMetrics) {
+            double value = metricValues.get(metric);
+            String classification = classify(metric, value);
+            addMetricTableRow(metric, String.valueOf(value), classification);
+            
+            switch (classification) {
+                case "LOW":
+                    numericClassifications[i] = 1.0;
+                    break;
+                case "MEDIUM":
+                    numericClassifications[i] = 2.0;
+                    break;
+                case "HIGH":
+                    numericClassifications[i] = 3.0;
+                    break;
+                default: // UNKNOWN
+                	numericClassifications[i] = 0.0;
+                    break;
+            }
+            i++;
         }
         for (TableColumn col : metricsTable.getColumns()) col.pack();
+<<<<<<< HEAD
         return numericValues;
 >>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
+=======
+        
+        generateChart(sortedMetrics.toArray(new String[0]), numericClassifications);
+>>>>>>> 51a1313 (inicial commit)
     }
 
     /**
@@ -764,6 +1034,7 @@ public class MyView extends ViewPart {
     /**
      * Gera e estiliza o gráfico de barras com base nos valores das métricas.
 <<<<<<< HEAD
+<<<<<<< HEAD
      * @param metricNames Os nomes das métricas para o eixo X.
      * @param valoresNumericos Array de dados para a série.
      */
@@ -774,6 +1045,12 @@ public class MyView extends ViewPart {
     @SuppressWarnings("deprecation")
 	private void generateChart(double[] valoresNumericos) {
 >>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
+=======
+     * @param metricNames Os nomes das métricas para o eixo X.
+     * @param valoresNumericos Array de dados para a série.
+     */
+    private void generateChart(String[] metricNames, double[] valoresNumericos) {
+>>>>>>> 51a1313 (inicial commit)
         Display display = chartComposite.getDisplay();
         Chart chart = new Chart(chartComposite, SWT.NONE);
         
@@ -788,21 +1065,30 @@ public class MyView extends ViewPart {
         // --- Eixo Y (Valores) ---
         IAxis yAxis = axisSet.getYAxis(0);
 <<<<<<< HEAD
+<<<<<<< HEAD
         yAxis.getTitle().setText("Classificação de Risco (1=Baixo, 2=Médio, 3=Alto)"); 
 =======
         yAxis.getTitle().setText("Classificação (1=Low, 2=Medium, 3=High)"); 
 >>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
+=======
+        yAxis.getTitle().setText("Classificação de Risco (1=Baixo, 2=Médio, 3=Alto)"); 
+>>>>>>> 51a1313 (inicial commit)
         yAxis.getTitle().setFont(new Font(display, "Segoe UI", 9, SWT.NORMAL));
         yAxis.getTitle().setForeground(fontColor);
         yAxis.getTick().setFont(new Font(display, "Segoe UI", 8, SWT.NORMAL));
         yAxis.getTick().setForeground(fontColor);
         yAxis.getGrid().setForeground(new Color(display, 224, 224, 224));
 <<<<<<< HEAD
+<<<<<<< HEAD
         yAxis.setRange(new Range(0, 4));
 
 =======
         
 >>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
+=======
+        yAxis.setRange(new Range(0, 4));
+
+>>>>>>> 51a1313 (inicial commit)
         // --- Eixo X (Categorias) ---
         IAxis xAxis = axisSet.getXAxis(0);
         xAxis.getTitle().setText("Métricas");
@@ -810,6 +1096,7 @@ public class MyView extends ViewPart {
         xAxis.getTitle().setForeground(fontColor);
         xAxis.getTick().setFont(new Font(display, "Segoe UI", 8, SWT.NORMAL));
         xAxis.getTick().setForeground(fontColor);
+<<<<<<< HEAD
 <<<<<<< HEAD
         xAxis.setCategorySeries(metricNames);
         xAxis.enableCategory(true);
@@ -823,6 +1110,13 @@ public class MyView extends ViewPart {
         // --- Séries de Dados ---
         double[] xSeries = IntStream.range(0, metricas.length).mapToDouble(i -> (double) i).toArray();
 >>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
+=======
+        xAxis.setCategorySeries(metricNames);
+        xAxis.enableCategory(true);
+        xAxis.getGrid().setVisible(false);
+
+        // --- Séries de Dados ---
+>>>>>>> 51a1313 (inicial commit)
         IBarSeries series = (IBarSeries) chart.getSeriesSet().createSeries(SeriesType.BAR, "Classificação");
         series.setYSeries(valoresNumericos);
         series.setBarColor(primaryBlue); // Todas as barras terão a mesma cor
@@ -835,16 +1129,23 @@ public class MyView extends ViewPart {
 
     /**
 <<<<<<< HEAD
+<<<<<<< HEAD
      * Classifica um valor de métrica como LOW, MEDIUM ou HIGH com base nos limiares carregados.
 =======
      * Classifica um valor de métrica como LOW, MEDIUM ou HIGH com base em limiares pré-definidos.
 >>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
+=======
+     * Classifica um valor de métrica como LOW, MEDIUM ou HIGH com base nos limiares carregados.
+>>>>>>> 51a1313 (inicial commit)
      * @param metrica O nome da métrica.
      * @param valor O valor a ser classificado.
      * @return A string de classificação.
      */
     private String classify(String metrica, double valor) {
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 51a1313 (inicial commit)
         if (metricThresholds == null || !metricThresholds.containsKey(metrica)) {
             return "UNKNOWN";
         }
@@ -858,6 +1159,7 @@ public class MyView extends ViewPart {
         } else {
             return "HIGH";
         }
+<<<<<<< HEAD
 =======
         return switch (metrica) {
             case "LOC" -> valor < 100 ? "LOW" : valor < 300 ? "MEDIUM" : "HIGH";
@@ -871,6 +1173,8 @@ public class MyView extends ViewPart {
             default -> "UNKNOWN";
         };
 >>>>>>> 23283ea (feat: Adiciona histórico de execuções e refatora a interface da view)
+=======
+>>>>>>> 51a1313 (inicial commit)
     }
 
     /**
