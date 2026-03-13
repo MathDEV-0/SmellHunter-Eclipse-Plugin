@@ -4,12 +4,13 @@ Eclipse Plugin -- SmellHunter Client
 1\. Overview
 ------------
 
-This plugin extends the Eclipse IDE to support the submission and visualization of software quality analysis performed by the **SmellHunter API**.
+This plugin extends the Eclipse IDE to support the submission and visualization of software quality analysis performed by the **SmellHunter API**
 
 The plugin provides an integrated interface that allows developers to upload the required artifacts for smell detection, trigger asynchronous analyses, and visualize the returned metrics and results directly within the development environment.
 
 By integrating analysis capabilities into the IDE, the tool aims to support developers during the development process without requiring external tools or workflow interruptions.
 
+🔗 [**SmellHunter API**](https://github.com/MathDEV-0/SmellHunterAPI.git)
 * * * * *
 
 2\. Main Features
@@ -62,7 +63,7 @@ Results include:
 
 In Eclipse:
 
-Window → Show View → Other → SmellHunter
+Window → Show View → Other → MyView
 
 This opens the plugin interface inside the IDE workspace.
 
@@ -102,11 +103,12 @@ Detected smells and related metrics are then presented in the plugin interface.
 ---------------
 
 ### Plugin Interface
-
+![Plugin Interface](figures/clean_view.png)
 ### Artifact Upload
-
+![Artifact Upload](figures/metrics_load.png)
 ### Detection Results
-
+![Detection Results Smell](figures/tela_smell_hunter.png)
+![Detection Results No-Smell](figures/tela_no_smell.png)
 * * * * *
 
 5\. Technical Details
