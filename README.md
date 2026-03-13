@@ -1,47 +1,197 @@
-# Plugin de Análise de Métricas de Software
+Eclipse Plugin -- SmellHunter Client
+===================================
 
-## 1. Introdução
+1\. Overview
+------------
 
-Este é um plugin para a plataforma Eclipse IDE projetado para analisar e visualizar métricas de qualidade de software. A ferramenta oferece uma interface de usuário interativa para carregar os arquivos necessários, validar a seleção e exibir os dados de forma clara e objetiva, tanto em formato de tabela quanto em um gráfico de barras.
+This plugin extends the Eclipse IDE to support the submission and visualization of software quality analysis performed by the **SmellHunter API**.
 
-O objetivo principal é fornecer feedback visual imediato sobre a qualidade de um sistema ou classe com base em um conjunto de métricas predefinidas, como LOC, CBO, WMC, entre outras.
+The plugin provides an integrated interface that allows developers to upload the required artifacts for smell detection, trigger asynchronous analyses, and visualize the returned metrics and results directly within the development environment.
 
-## 2. Funcionalidades
+By integrating analysis capabilities into the IDE, the tool aims to support developers during the development process without requiring external tools or workflow interruptions.
 
-* **Interface de Usuário Moderna e Interativa:** Painel dedicado para gerenciamento de arquivos com uma aparência limpa e organizada.
-* **Carregamento de Arquivos Guiado:** Slots específicos para cada tipo de arquivo necessário:
-    * 1 arquivo de domínio (`.smelldsl`)
-    * 2 arquivos de métricas (`.csv` ou `.json`)
-* **Validação em Tempo Real:**
-    * Indicadores de status coloridos (Vermelho/Verde) mostram instantaneamente quais arquivos ainda precisam ser carregados.
-    * O botão de processamento só é habilitado após todos os arquivos necessários serem anexados.
-* **Gerenciamento de Arquivos:** Permite anexar e remover arquivos individualmente antes do processamento.
-* **Visualização Dupla dos Dados:**
-    * **Tabela de Métricas:** Exibe o valor bruto de cada métrica e sua classificação qualitativa (LOW, MEDIUM, HIGH).
-    * **Gráfico de Barras:** Apresenta uma visualização gráfica da classificação de cada métrica, facilitando a identificação de pontos críticos.
-* **Customização Visual:** O tema do gráfico e os componentes da UI foram ajustados para uma aparência mais moderna, garantindo melhor integração com temas de IDE escuros e claros.
+* * * * *
 
-## 3. Como Usar
+2\. Main Features
+-----------------
 
-1.  **Abra a View do Plugin:** No seu ambiente Eclipse, navegue até `Window` > `Show View` > `Other...` e selecione a view do plugin (por exemplo, "MyView").
-2.  **Anexe os Arquivos:**
-    * Na seção "Gerenciamento de Arquivos", você verá três slots.
-    * Clique no botão **"Anexar..."** de cada slot para selecionar o arquivo correspondente.
-    * O indicador de status mudará de vermelho para verde assim que um arquivo for anexado.
-3.  **Exclua (se necessário):** Se você selecionou um arquivo incorreto, clique no botão **"Excluir"** ao lado dele para limpar o slot.
-4.  **Processe os Dados:**
-    * Após anexar os três arquivos, o botão **"Confirmar e Processar"** será habilitado.
-    * Clique nele para iniciar a análise.
-5.  **Analise os Resultados:**
-    * Os dados do primeiro arquivo de métricas serão exibidos na tabela e no gráfico abaixo.
-    * A tabela mostrará os valores numéricos e a classificação.
-    * O gráfico de barras representará visualmente essas classificações.
+### Artifact Management
 
-## 4. Detalhes Técnicos
+The plugin allows developers to upload the artifacts required for smell detection:
 
-* **Plataforma:** Eclipse RCP (Rich Client Platform)
-* **Linguagem:** Java
-* **UI Toolkit:** SWT (Standard Widget Toolkit)
-* **Biblioteca de Gráficos:** SWTChart
+-   **Smell DSL file (`.smelldsl`)**
 
----
+-   **Metrics file (`.csv`)**
+
+-   **Threshold definitions (`.csv`)**
+
+These artifacts are validated before being sent to the SmellHunter API.
+
+### Real-Time Input Validation
+
+The interface provides visual indicators showing whether required inputs are present before enabling the analysis process.
+
+This prevents invalid requests from being submitted to the detection service.
+
+### Asynchronous Analysis Submission
+
+Once all required files are provided, the plugin sends a request to the SmellHunter API using the `POST /analyze` endpoint.
+
+The analysis is processed asynchronously by the backend infrastructure.
+
+### Results Visualization
+
+After the analysis is completed, the plugin retrieves results from the API and displays them in the IDE.
+
+Results include:
+
+-   detected smell types
+
+-   analyzed metrics
+
+-   rule evaluation results
+
+-   contextual information related to the analyzed artifact
+
+* * * * *
+
+3\. Usage
+---------
+
+### Opening the Plugin View
+
+In Eclipse:
+
+Window → Show View → Other → SmellHunter
+
+This opens the plugin interface inside the IDE workspace.
+
+* * * * *
+
+### Submitting an Analysis
+
+1.  Attach the required files:
+
+    -   DSL definition
+
+    -   metrics file
+
+    -   threshold file
+
+2.  Once all required inputs are provided, the **Analyze** button becomes enabled.
+
+3.  Clicking **Analyze** submits the request to the SmellHunter API.
+
+* * * * *
+
+### Retrieving Results
+
+The plugin periodically queries the API using:
+
+GET /status/<ctx_id>
+
+Once processing is completed, results can be retrieved via:
+
+GET /smells/<smell_id>
+
+Detected smells and related metrics are then presented in the plugin interface.
+
+* * * * *
+
+4\. Screenshots
+---------------
+
+### Plugin Interface
+
+### Artifact Upload
+
+### Detection Results
+
+* * * * *
+
+5\. Technical Details
+---------------------
+
+| Component | Technology |
+| --- | --- |
+| IDE Platform | Eclipse RCP |
+| Programming Language | Java |
+| UI Toolkit | SWT |
+| Integration | REST API |
+| Backend Service | SmellHunter API |
+
+* * * * *
+
+6\. Role in the SmellHunter Ecosystem
+-------------------------------------
+
+The Eclipse plugin acts as the **developer-facing interface** of the SmellHunter platform.
+
+It enables developers to interact with the detection infrastructure directly from their development environment, while the analysis itself is executed by the event-driven backend services.
+
+* * * * *
+7\. Workflow
+-------------------------------------
+```mermaid
+flowchart LR
+
+A[User clicks Detect] --> B[Validate Inputs]
+
+B --> C[Load Metrics]
+C --> D[Load Thresholds]
+D --> E[Read SmellDSL]
+
+E --> F[Build JSON Payload]
+
+F --> G[POST /analyze]
+
+G --> H[Receive ctx_id + smell_id]
+
+H --> I[Polling Loop]
+
+I --> J[GET /smells/<smell_id>]
+
+J --> K{Analysis Ready?}
+
+K -->|No| I
+K -->|Yes| L[Process Result]
+
+L --> M[Update Metrics Table]
+L --> N[Update Chart]
+L --> O[Add Execution Log]
+```
+
+* * * * *
+8\. Sequence Diagram
+-------------------------------------
+```mermaid
+sequenceDiagram
+participant Plugin
+participant API
+participant EventBus
+participant Validator
+participant Interpreter
+participant Persistence
+participant Storage
+
+Plugin->>API: POST /analyze
+API->>EventBus: publish METRICS_VALIDATION_REQUESTED
+
+EventBus->>Validator: validate metrics and thresholds
+Validator->>EventBus: publish VALIDATION_COMPLETED
+
+EventBus->>Interpreter: run DSL interpretation
+Interpreter->>EventBus: publish ANALYSIS_COMPLETED
+
+EventBus->>Persistence: persist smell result
+Persistence->>Storage: save smell data
+Persistence->>EventBus: publish PERSISTENCE_COMPLETED
+
+API-->>Plugin: ctx_id and smell_id
+
+loop Polling for result
+    Plugin->>API: GET /smells/{smell_id}
+    API->>Storage: query smell result
+    API-->>Plugin: processing or result
+end
+```
