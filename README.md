@@ -276,7 +276,7 @@ participant Persistence
 participant Storage
 
 Plugin->>API: POST /analyze
-API->>EventBus: publish METRICS_VALIDATION_REQUESTED
+API->>EventBus: publish ANALYSIS_REQUESTED
 
 EventBus->>Validator: validate metrics and thresholds
 Validator->>EventBus: publish VALIDATION_COMPLETED
